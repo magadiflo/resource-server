@@ -126,3 +126,37 @@ Como parte de la configuración de un JwtAuthenticationConverter, puede suminist
 Digamos que su **Servidor de Autorización** comunica authorities (o roles en nuestro caso) en un **claim personalizado**
 llamado `roles`. En ese caso, puedes **configurar el claim** que JwtAuthenticationConverter debe **inspeccionar**,
 esa configuración lo podemos ver en el método `jwtAuthenticationConverter()`.
+
+## Creando controlador con endpoints segurizados
+
+Creamos dos endpoints, donde el endpoint `/admin` podrá ser accedido únicamente por usuarios que tengan el rol de
+`ROLE_ADMIN`, esto es gracias a que dicho endpoint lo anotamos con `@PreAuthorize("hasAuthority('ROLE_ADMIN')")`.
+Por otro lado, el endpoint `/user`, únicamente podrá ser accedido por usuarios que estén autenticados,
+independientemente del rol que tengan, ya que ese endpoint no lo anotamos con el `@PreAuthorize(...)` pero en la clase
+de configuración `ResourceServerConfig` dijimos que todas las solicitudes debían estar autenticadas
+`authorize.anyRequest().authenticated()`:
+
+````java
+
+@RestController
+@RequestMapping(path = "/api/v1/resources")
+public class ResourceController {
+    @GetMapping(path = "/user")
+    public ResponseEntity<MessageDTO> user(Authentication authentication) {
+        return ResponseEntity.ok(new MessageDTO("Hola user, " + authentication.getName()));
+    }
+
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @GetMapping(path = "/admin")
+    public ResponseEntity<MessageDTO> admin(Authentication authentication) {
+        return ResponseEntity.ok(new MessageDTO("Hola admin, " + authentication.getName()));
+    }
+}
+````
+
+Finalmente, el controlador anterior usa un DTO al que le llamamos `MessageDTO`:
+
+````java
+public record MessageDTO(String message) {
+}
+````
