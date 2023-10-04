@@ -161,7 +161,7 @@ public record MessageDTO(String message) {
 }
 ````
 
-## Ejecutando aplicación
+## Accediendo al Resource Server con usuario registrado en el Authorization Server
 
 Primero, es importante tener levantado el `Servidor de Autorización` ya que nuestro servidor de recursos se comunica con
 él. Luego, utilizando la página [oauthdebugger/debug](https://oauthdebugger.com/debug) solicitamos un
@@ -273,3 +273,76 @@ curl -v http://localhost:8080/api/v1/resources/user | jq
 < Set-Cookie: JSESSIONID=7C0A03A3750B3BBE317C58C4A6E34CEC; Path=/; HttpOnly
 < WWW-Authenticate: Bearer
 ````
+
+## Accediendo al Resource Server con Social Login de Google
+
+En el `Authorization Server` **CAPÍTULO 5**, se implementó la funcionalidad de poder autenticarse usando el
+**Social Login de google**. En este apartado verificaremos dicha funcionalidad y haremos algunos ajustes a nuestros
+endpoints.
+
+Teniendo en ejecución los dos proyectos **(Authorization Server y Resource Server)** debemos obtener un `access_token`
+para un usuario que se loguee con su cuenta de google. Para eso, realizamos el flujo de siempre, pero esta vez
+accediendo con nuestra cuenta de google para obtener un `Authorization Code`:
+
+![2-flow-authorization-code](./assets/2-flow-authorization-code.png)
+
+Una vez obtenido el **authorization code**, realizamos la petición para solicitar un `access_token`:
+
+````bash
+curl -v -X POST -u front-end-app:secret-key -d "grant_type=authorization_code&client_id=front-end-app&redirect_uri=https://oauthdebugger.com/debug&code_verifier=kQb9sK4xY9dEiQt7EOABhQD15wtb8g4wujR4ZHsEbdK&code=tFgEv092rQCnqa9tK6tfSI8Q_wVODkNLBCoJ442LQFtmcdPb6ZmNonpo6ZZ7daJOYfuDPkXhgHmWh39bB_wzrMRiYW2yGNnMuM8exq7tRoKIIs41Em7c_bRb6IRYxvJd" http://localhost:9000/oauth2/token | jq
+
+> POST /oauth2/token HTTP/1.1
+> Host: localhost:9000
+> Authorization: Basic ZnJvbnQtZW5kLWFwcDpzZWNyZXQta2V5
+> Content-Type: application/x-www-form-urlencoded
+>
+< HTTP/1.1 200
+<
+{
+  "access_token": "eyJraWQiOiI4MTEzYjVjMC1lMWYxLTQxNDYtOGRmZi1iOGIyNDY5MDVlYWUiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJtYWdhZGlmbG9AZ21haWwuY29tIiwiYXVkIjoiZnJvbnQtZW5kLWFwcCIsIm5iZiI6MTY5NjQzNDc2Nywic2NvcGUiOlsib3BlbmlkIl0sInJvbGVzIjpbIk9JRENfVVNFUiIsIlNDT1BFX29wZW5pZCIsIlNDT1BFX2h0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvdXNlcmluZm8ucHJvZmlsZSIsIlNDT1BFX2h0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvdXNlcmluZm8uZW1haWwiXSwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo5MDAwIiwiZXhwIjoxNjk2NDM1MDY3LCJ0b2tlbl90eXBlIjoiYWNjZXNzIHRva2VuIiwiaWF0IjoxNjk2NDM0NzY3LCJ1c2VybmFtZSI6Im1hZ2FkaWZsb0BnbWFpbC5jb20ifQ.WLYqpVnx1ygLoRxxEVOS5G54xXPyeBpidkRI0Pjz344WU-xqSj59UIwzX9MSB087M6OBvP5paRYNRmSCt2hItdGKXwsXw40x27BuQmnjtJnfdQANC0giDXhpfU8CH6Uf4MBMbJJqyy_TlehGE125ZMUQDQadGcbXnqFE1H0iSWmvAiYc5DqVDvlJQE5NfFEiMZEue4Gndcx33oJVXB5arDgF4pq6xbLUqqwQHNYRoh9kmlilOCEdivMjr8BhgzQK92cK6IJwQ-Chetv1R1AJ2YPcJfPxSfKDmiWbZUdmUGJejolB13QajrnL7etFeh6ojku1-8HBYQ7heDiMZWunkA",
+  "refresh_token": "Y-FkJYjN-r66YaDG6Wix3dhAJ1JxtTlCS3Fu4h1YXRbDMSkSdDARaTM1_XloWsLtAvkxAHfyX55Wt3mKqxqYZ2Rh_Dh4wdIKeWwn4RcI9se10MTvKMlaked_aNBtxnt5",
+  "scope": "openid",
+  "id_token": "eyJraWQiOiI4MTEzYjVjMC1lMWYxLTQxNDYtOGRmZi1iOGIyNDY5MDVlYWUiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJtYWdhZGlmbG9AZ21haWwuY29tIiwiYXVkIjoiZnJvbnQtZW5kLWFwcCIsImF6cCI6ImZyb250LWVuZC1hcHAiLCJhdXRoX3RpbWUiOjE2OTY0MzQ2MTksImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3Q6OTAwMCIsImV4cCI6MTY5NjQzNjU2NywidG9rZW5fdHlwZSI6ImlkIHRva2VuIiwiaWF0IjoxNjk2NDM0NzY3LCJub25jZSI6Imdid3F0YTIzNDlxIiwic2lkIjoiNEYtUFVKdUpneTNXNFFQWDJSWjVjUXp4RHFfQnJHSk1RNWJyZDZpWVdXWSJ9.OIjAEwNzRlXjf_QvPaqzGVZAdyaAp0kVtbAArr14FmB1VU9bLvtnQRz2dyxgs6zBd11pajONwFMuHQTyixSBfAkn2k18_b_eX8-mhUKuNYPD11rYfwWKv2pCy4RWxK_h8PoJALhxYYKvxs0ANcdgz3GsdbuM9QOZkTtE14_6Wy1C7waIZVT90kmMBMOqETWSdjbEU-x4Q2_WBZC_U7W69lVwW9uECdD2S_nJCAuJoYZCRCqpzF2t4WWKpEUqaFMGmZA54XUIp3ZASSbQySW0beWu56v7WvDQ8a08qzZ828UX90uRhn2DidTDeAq498iH_53KKb0c_-0NJjSZdwfbmQ",
+  "token_type": "Bearer",
+  "expires_in": 299
+}
+````
+
+Con el `access_token` obtenido realizamos una solicitud al endpoint del **servidor de recurso**:
+
+````bash
+ curl -v -H "Authorization: Bearer eyJraWQiOiI4MTEzYjVjMC1lMWYxLTQxNDYtOGRmZi1iOGIyNDY5MDVlYWUiLCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJtYWdhZGlmbG9AZ21haWwuY29tIiwiYXVkIjoiZnJvbnQtZW5kLWFwcCIsIm5iZiI6MTY5NjQzNDc2Nywic2NvcGUiOlsib3BlbmlkIl0sInJvbGVzIjpbIk9JRENfVVNFUiIsIlNDT1BFX29wZW5pZCIsIlNDT1BFX2h0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvdXNlcmluZm8ucHJvZmlsZSIsIlNDT1BFX2h0dHBzOi8vd3d3Lmdvb2dsZWFwaXMuY29tL2F1dGgvdXNlcmluZm8uZW1haWwiXSwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo5MDAwIiwiZXhwIjoxNjk2NDM1MDY3LCJ0b2tlbl90eXBlIjoiYWNjZXNzIHRva2VuIiwiaWF0IjoxNjk2NDM0NzY3LCJ1c2VybmFtZSI6Im1hZ2FkaWZsb0BnbWFpbC5jb20ifQ.WLYqpVnx1ygLoRxxEVOS5G54xXPyeBpidkRI0Pjz344WU-xqSj59UIwzX9MSB087M6OBvP5paRYNRmSCt2hItdGKXwsXw40x27BuQmnjtJnfdQANC0giDXhpfU8CH6Uf4MBMbJJqyy_TlehGE125ZMUQDQadGcbXnqFE1H0iSWmvAiYc5DqVDvlJQE5NfFEiMZEue4Gndcx33oJVXB5arDgF4pq6xbLUqqwQHNYRoh9kmlilOCEdivMjr8BhgzQK92cK6IJwQ-Chetv1R1AJ2YPcJfPxSfKDmiWbZUdmUGJejolB13QajrnL7etFeh6ojku1-8HBYQ7heDiMZWunkA" http://localhost:8080/api/v1/resources/user | jq
+
+>
+< HTTP/1.1 200
+<
+{
+  "message": "Hola user, magadiflo@gmail.com"
+}
+````
+
+Como observamos en el resultado anterior pudimos ingresar al endpoint `/user`, ya que con la configuración actual del
+resource server, este endpoint requiere únicamente que el usuario esté autenticado. Veamos qué contenido tiene el
+`access_token` utilizado:
+
+![3-jwt-decoded-social-login](./assets/3-jwt-decoded-social-login.png)
+
+Vemos que uno de los roles que está presente en el **JWT** para el usuario que se logueó con su cuenta de google es
+`OIDC_USER` por lo que usaremos ese rol para asegurar el endpoint `/user`:
+
+````java
+
+@RestController
+@RequestMapping(path = "/api/v1/resources")
+public class ResourceController {
+    @PreAuthorize("hasAnyAuthority('OIDC_USER')")
+    @GetMapping(path = "/user")
+    public ResponseEntity<MessageDTO> user(Authentication authentication) {
+        return ResponseEntity.ok(new MessageDTO("Hola user, " + authentication.getName()));
+    }
+    /*other method*/
+}
+````
+
+Listo, si volvemos a ejecutar la aplicación y realizamos todo el flujo con el inicio de sesión de google hasta acceder
+al endpoint `/user`, que ahora está restringido al rol `OIDC_USER`, veremos que todo sigue funcionando correctamente.
