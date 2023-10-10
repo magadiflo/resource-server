@@ -346,3 +346,58 @@ public class ResourceController {
 
 Listo, si volvemos a ejecutar la aplicación y realizamos todo el flujo con el inicio de sesión de google hasta acceder
 al endpoint `/user`, que ahora está restringido al rol `OIDC_USER`, veremos que todo sigue funcionando correctamente.
+
+---
+
+# CAPÍTULO 10: Accediendo al Resource Server desde cliente Angular - Agregando CORS
+
+---
+
+Este capítulo le corresponde a la aplicación cliente de Angular, pero necesitamos modificar el proyecto agregando el
+`CORS` para que el cliente de Angular funcione sin problemas.
+
+Creamos una clase de configuración, similar a la que creamos en el `Authorization Server` donde expondremos un bean de
+cors:
+
+````java
+
+@Configuration
+public class ApplicationConfig {
+    @Bean
+    public CorsFilter corsFilter() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowCredentials(true);
+        configuration.setAllowedOrigins(Collections.singletonList("http://localhost:4200"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("Origin", "Content-Type", "Accept", "Authorization",
+                "Access-Control-Allow-Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers",
+                "X-Requested-With"));
+        configuration.setExposedHeaders(Arrays.asList("Origin", "Content-Type", "Accept", "Authorization",
+                "Access-Control-Allow-Origin", "Access-Control-Allow-Credentials"));
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+
+        return new CorsFilter(source);
+    }
+}
+````
+
+Finalmente, en el método del `SecurityFilterChain` habilitamos el cors:
+
+````java
+
+@EnableMethodSecurity()
+@EnableWebSecurity
+@Configuration
+public class ResourceServerConfig {
+    /* other code */
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http.cors(Customizer.withDefaults());
+        /* other code */
+    }
+    /* other code */
+}
+````
